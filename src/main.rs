@@ -58,7 +58,7 @@ impl Word {
                     if all_wrds.contains_key(wrd) {
                         spans.push(Span::new(wrd).color(colors::MEANING).link(wrd.to_string()));
                     } else {
-                        spans.push(Span::new(wrd));
+                        spans.push(Span::new(wrd).link(wrd.to_string()));
                     }
                     spans.push(Span::new(" "));
                 }
@@ -73,7 +73,7 @@ impl Word {
 struct Artha {
     watching: bool,
     search: String,
-    current_word: Word,
+    current_word: Option<Word>,
     all_words: HashMap<String, Word>,
 }
 
@@ -101,21 +101,19 @@ impl Artha {
         Self {
             watching: false,
             search: "".into(),
-            current_word: Word {
+            current_word: Some(Word {
                 word: "सब्द खोज्नुहोस।".into(),
                 definitions: vec![Definition {
                     grammar: Some("ना.".into()),
                     senses: vec!["अर्थ १".into(), "अर्थ २".into()],
                 }],
-            },
+            }),
             all_words,
         }
     }
 
     fn search(&mut self) {
-        if let Some(w) = self.all_words.get(self.search.trim()) {
-            self.current_word = w.clone();
-        }
+        self.current_word = self.all_words.get(self.search.trim()).cloned();
     }
 
     fn title(&self) -> String {
@@ -189,8 +187,12 @@ impl Artha {
                 .width(Length::Fill)
             },
             container(
-                scrollable(self.current_word.view(&self.all_words).width(Length::Fill))
-                    .width(Length::Fill)
+                scrollable(if let Some(cw) = &self.current_word {
+                    cw.view(&self.all_words).width(Length::Fill)
+                } else {
+                    Rich::with_spans(vec![Span::new("शब्द भेटीएन।").color(colors::READING)])
+                })
+                .width(Length::Fill)
             )
             .padding(10)
         ]
