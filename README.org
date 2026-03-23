@@ -1,0 +1,13 @@
+* Introduction
+
+Tiny dictionary for nepali word and meaning search.
+
+* Installation and Use
+
+Unzip the `sabdakosh.json.gz` into `sabdakosh.json`.
+
+Run the application through
+`cargo run --release`
+
+* Screenshots
+[[images/screenshot.png]]
