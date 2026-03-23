@@ -55,8 +55,9 @@ impl Word {
             }
             m.senses.iter().for_each(|s| {
                 for wrd in s.split(' ') {
-                    if all_wrds.contains_key(wrd) {
-                        spans.push(Span::new(wrd).color(colors::MEANING).link(wrd.to_string()));
+                    let wt = strip_sym(wrd);
+                    if all_wrds.contains_key(&wt) {
+                        spans.push(Span::new(wrd).color(colors::MEANING).link(wt));
                     } else {
                         spans.push(Span::new(wrd).link(wrd.to_string()));
                     }
@@ -74,6 +75,7 @@ struct Artha {
     watching: bool,
     search: String,
     current_word: Option<Word>,
+    alternates: Vec<String>,
     all_words: HashMap<String, Word>,
 }
 
@@ -108,12 +110,35 @@ impl Artha {
                     senses: vec!["अर्थ १".into(), "अर्थ २".into()],
                 }],
             }),
+            alternates: vec![],
             all_words,
         }
     }
 
     fn search(&mut self) {
-        self.current_word = self.all_words.get(self.search.trim()).cloned();
+        let wrd = strip_sym(&self.search);
+        self.current_word = self.all_words.get(&wrd).cloned();
+        if self.current_word.is_some() {
+            return;
+        }
+        self.alternates = self
+            .all_words
+            .keys()
+            .filter(|w| w.contains(&wrd))
+            .take(10)
+            .map(|w| w.to_string())
+            .collect();
+
+        // HACK: just search first part of the word and hopefully we'll get some matches without conjugation
+        if self.alternates.is_empty() && wrd.chars().count() > 5 {
+            self.alternates = self
+                .all_words
+                .keys()
+                .filter(|w| w.contains(&wrd.chars().take(5).collect::<String>()))
+                .take(10)
+                .map(|w| w.to_string())
+                .collect();
+        }
     }
 
     fn title(&self) -> String {
@@ -187,11 +212,17 @@ impl Artha {
                 .width(Length::Fill)
             },
             container(
-                scrollable(if let Some(cw) = &self.current_word {
-                    cw.view(&self.all_words).width(Length::Fill)
-                } else {
-                    Rich::with_spans(vec![Span::new("शब्द भेटीएन।").color(colors::READING)])
-                })
+                scrollable(
+                    column![
+                        if let Some(cw) = &self.current_word {
+                            cw.view(&self.all_words).width(Length::Fill)
+                        } else {
+                            Rich::with_spans(vec![Span::new("शब्द भेटीएन।").color(colors::READING)])
+                        },
+                        rich_with_links(&self.alternates),
+                    ]
+                    .spacing(40)
+                )
                 .width(Length::Fill)
             )
             .padding(10)
@@ -205,4 +236,40 @@ impl Artha {
     fn subscription(&self) -> Subscription<Message> {
         time::every(Duration::from_millis(600)).map(|_| Message::CheckClipboard)
     }
+}
+
+fn rich_with_links(wrds: &[String]) -> Rich<'_, String, Message> {
+    let mut spans = if wrds.is_empty() {
+        vec![]
+    } else {
+        vec![
+            Span::new("के यो भन्न खोज्नुभएको थियो र?")
+                .color(colors::WORD)
+                .size(14),
+            Span::new("\n"),
+        ]
+    };
+    for wrd in wrds {
+        spans.push(Span::new(wrd).color(colors::MEANING).link(wrd.to_string()));
+        spans.push(Span::new("; "));
+    }
+    spans.push(Span::new("\n"));
+    Rich::with_spans(spans).on_link_click(Message::WordClicked)
+}
+
+fn strip_sym(wrd: &str) -> String {
+    // .trim()
+    // // need to trim all symbols if I can find a way to do that
+    // .trim_matches(&['.', ',', ';', '।', '?', '(', ')']);
+    let chars: Vec<char> = wrd.chars().collect();
+    let start = chars.iter().position(|c| c.is_alphabetic()).unwrap_or(0);
+    let end = chars
+        .iter()
+        .rposition(|c| c.is_alphabetic())
+        .unwrap_or(chars.len() - 1);
+    chars
+        .into_iter()
+        .skip(start)
+        .take(end - start + 1)
+        .collect()
 }
