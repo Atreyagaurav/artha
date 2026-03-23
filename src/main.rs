@@ -41,7 +41,7 @@ struct Word {
 }
 
 impl Word {
-    fn view(&self) -> Rich<'_, String, Message> {
+    fn view(&self, all_wrds: &HashMap<String, Word>) -> Rich<'_, String, Message> {
         let mut spans = vec![
             Span::new(" * ").size(14),
             Span::new(&self.word).color(colors::WORD).size(14),
@@ -54,11 +54,18 @@ impl Word {
                 spans.push(Span::new("\n").size(14));
             }
             m.senses.iter().for_each(|s| {
-                spans.push(Span::new(s).color(colors::MEANING));
+                for wrd in s.split(' ') {
+                    if all_wrds.contains_key(wrd) {
+                        spans.push(Span::new(wrd).color(colors::MEANING).link(wrd.to_string()));
+                    } else {
+                        spans.push(Span::new(wrd));
+                    }
+                    spans.push(Span::new(" "));
+                }
                 spans.push(Span::new("\n"));
             });
         });
-        Rich::with_spans(spans)
+        Rich::with_spans(spans).on_link_click(Message::WordClicked)
     }
 }
 
@@ -77,6 +84,7 @@ enum Message {
     WatchMode,
     CheckClipboard,
     ClipChanged(String),
+    WordClicked(String),
     // NextClicked,
     // PreviousClicked,
 }
@@ -125,6 +133,10 @@ impl Artha {
             }
             Message::InputChanged(inp) => {
                 self.search = inp;
+            }
+            Message::WordClicked(wrd) => {
+                self.search = wrd;
+                self.search();
             }
             Message::ClipChanged(inp) => {
                 if inp != self.search {
@@ -176,8 +188,11 @@ impl Artha {
                 ]
                 .width(Length::Fill)
             },
-            container(scrollable(self.current_word.view().width(Length::Fill)).width(Length::Fill))
-                .padding(10)
+            container(
+                scrollable(self.current_word.view(&self.all_words).width(Length::Fill))
+                    .width(Length::Fill)
+            )
+            .padding(10)
         ]
         .padding(10)
         .align_x(Alignment::Center)

@@ -11,3 +11,10 @@ Run the application through
 
 * Screenshots
 [[images/screenshot.png]]
+
+* Roadmap
+
+- Error message when word not found
+- Partial search on word, if not found, show possible alternatives (root word),
+- Save search history, and back/forward button
+- Click on words to get to their meaning (mark the words with exact meaning with a different color, others can be clicked to search)
