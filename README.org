@@ -4,13 +4,25 @@ Tiny dictionary for nepali word and meaning search.
 
 * Installation and Use
 
-Unzip the `sabdakosh.json.gz` into `sabdakosh.json`.
+Unzip the `sabdakosh.json.gz` into `sabdakosh.json`, this is gzip compressed.
+
+```bash
+gzip -d sabdakosh.json.gz
+```
 
 Run the application through
 `cargo run --release`
 
+The application assumes the `sabdakosh.json` is in the same directory. I might just include it in the binary in the future.
+
 * Screenshots
 [[images/screenshot.png]]
+
+* Fancy Features
+
+If you have aspell set up with nepali language. Then when it can not find an exact match, it can communicate with aspell to get the root word and show the meaning for that instead.
+
+To set up aspell with nepali language, goto [[https://github.com/Atreyagaurav/aspell6-ne][`aspell-ne` repo]].
 
 * Roadmap
 
@@ -18,3 +30,4 @@ Run the application through
 - Partial search on word, if not found, show possible alternatives (root word),
 - Save search history, and back/forward button
 - Click on words to get to their meaning (mark the words with exact meaning with a different color, others can be clicked to search)
+

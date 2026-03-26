@@ -1,9 +1,9 @@
-use iced::clipboard::read_primary;
+use iced::clipboard::{read, read_primary};
 use iced::time::{self, Duration};
 use iced::widget::{
     button, column, container, row, scrollable,
     text::{Rich, Span},
-    text_input, tooltip,
+    text_input, toggler, tooltip,
 };
 use iced::window;
 use iced::{theme::Theme, Alignment, Element, Length, Settings, Subscription, Task};
@@ -11,7 +11,9 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
+mod aspell;
 mod colors;
+use aspell::SpellChecker;
 
 pub fn main() -> iced::Result {
     let mut settings = Settings::default();
@@ -72,10 +74,12 @@ impl Word {
 
 #[derive(Default)]
 struct Artha {
+    primary: bool,
     watching: bool,
     search: String,
     current_word: Option<Word>,
     alternates: Vec<String>,
+    checker: Option<SpellChecker>,
     all_words: HashMap<String, Word>,
 }
 
@@ -87,6 +91,7 @@ enum Message {
     CheckClipboard,
     ClipChanged(String),
     WordClicked(String),
+    Primary(bool),
     // NextClicked,
     // PreviousClicked,
 }
@@ -101,6 +106,7 @@ impl Artha {
             .map(|w| (w.word.to_string(), w))
             .collect();
         Self {
+            primary: false,
             watching: false,
             search: "".into(),
             current_word: Some(Word {
@@ -110,6 +116,7 @@ impl Artha {
                     senses: vec!["अर्थ १".into(), "अर्थ २".into()],
                 }],
             }),
+            checker: SpellChecker::new(),
             alternates: vec![],
             all_words,
         }
@@ -121,6 +128,15 @@ impl Artha {
         if self.current_word.is_some() {
             return;
         }
+        if let Some(checker) = self.checker.as_mut() {
+            // eprintln!("Checker: true");
+            if let Some(root) = checker.get_root(&wrd) {
+                // eprintln!("Root: {root}");
+                self.current_word = self.all_words.get(&root).cloned();
+                return;
+            }
+        }
+
         self.alternates = self
             .all_words
             .keys()
@@ -170,8 +186,11 @@ impl Artha {
             Message::WatchMode => {
                 self.watching = !self.watching;
             }
+            Message::Primary(p) => {
+                self.primary = p;
+            }
             Message::CheckClipboard if self.watching => {
-                return read_primary().then(|r| match r {
+                return if self.primary { read_primary() } else { read() }.then(|r| match r {
                     Some(txt) => return Task::perform(async { txt }, Message::ClipChanged),
                     _ => Task::none(),
                 })
@@ -193,6 +212,7 @@ impl Artha {
                     )
                     .style(container::rounded_box),
                     text_input("Word", &self.search).width(Length::Fill),
+                    toggler(self.primary).on_toggle(Message::Primary),
                 ]
                 .width(Length::Fill)
             } else {
